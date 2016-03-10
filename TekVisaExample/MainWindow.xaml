@@ -1,0 +1,54 @@
+﻿<Window x:Class="TekVisaExample.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:controls="clr-namespace:ControllerSirena"
+        xmlns:phonometer="clr-namespace:TekVisaExample"
+    Title="Misuratore Buzzer" Height="472" Width="837">
+    <Grid Margin="10,10,10,5">
+        <controls:ToneManager x:Name="toneManager" Margin="0,50,330,0" HorizontalAlignment="Stretch" Height="150" VerticalAlignment="Top">
+        </controls:ToneManager>
+
+        <Button x:Name="startSweepButton" Content="Avvia Misura" HorizontalAlignment="Left" Margin="677,259,0,0" VerticalAlignment="Top" Width="115" Click="StartSweepButton_Click" Height="30"/>
+        <ComboBox x:Name="instrumentsCombo" HorizontalAlignment="Left" Margin="80,205,0,0" VerticalAlignment="Top" Width="238"/>
+        <Button x:Name="scanButton" Content="Scan Local:" HorizontalAlignment="Left" Margin="0,205,0,0" VerticalAlignment="Top" Width="75" Height="22" Click="scanButton_Click"/>
+        <Label x:Name="label1" Content="COM Fonometro:" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.658,-1.115"/>
+        <ComboBox x:Name="comPortCombo" HorizontalAlignment="Left" Margin="116,10,0,0" VerticalAlignment="Top" Width="103"/>
+        <Button x:Name="rescanButton" Content="Rescan COM" HorizontalAlignment="Left" Margin="398,13,0,0" VerticalAlignment="Top" Width="75" RenderTransformOrigin="0.387,1.6" Click="rescanButton_Click"/>
+        <Button x:Name="testComButton" Content="Test Fonometro" HorizontalAlignment="Left" Margin="301,13,0,0" VerticalAlignment="Top" Width="92" Click="testComButton_Click"/>
+
+        <Grid Margin="292,0,0,10" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Width="500">
+            <Label x:Name="label" Content="Nome Misura:" HorizontalAlignment="Left" Margin="0,0,0,0" VerticalAlignment="Top" Width="101"/>
+            <Label x:Name="label2" Content="Data:" HorizontalAlignment="Left" Margin="0,30,0,0" VerticalAlignment="Top" />
+            <Label x:Name="label3" Content="Buzzer:" HorizontalAlignment="Left" Margin="0,60,0,0" VerticalAlignment="Top"/>
+            <Label x:Name="label4" Content="Descrizione:" HorizontalAlignment="Left" Margin="0,90,0,0" VerticalAlignment="Top"/>
+            <TextBox x:Name="nameText"  Height="23" Margin="116,0,10,0" TextWrapping="Wrap" VerticalAlignment="Top" HorizontalAlignment="Stretch"/>
+            <DatePicker x:Name="sessionDate" HorizontalAlignment="Left" Margin="116,30,0,0" VerticalAlignment="Top"/>
+            <TextBox x:Name="buzzerText" HorizontalAlignment="Stretch" Height="23" Margin="116,60,10,0" TextWrapping="Wrap" VerticalAlignment="Top" />
+            <TextBox x:Name="descriptionText" HorizontalAlignment="Stretch" Height="23" Margin="116,90,10,0" TextWrapping="Wrap" VerticalAlignment="Top"/>
+        </Grid>
+        <ComboBox x:Name="freqStepCombo" HorizontalAlignment="Left" Margin="145,346,0,0" VerticalAlignment="Top" Width="86"/>
+        <Label x:Name="label6" Content="Freq. Step:" HorizontalAlignment="Left" Margin="0,346,0,0" VerticalAlignment="Top"/>
+        <Label x:Name="label7" Content="Vpp:" HorizontalAlignment="Left" Margin="0,315,0,0" VerticalAlignment="Top"/>
+        <ComboBox x:Name="amplitudeCombo" HorizontalAlignment="Left" Margin="145,315,0,0" VerticalAlignment="Top" Width="86"/>
+        <ComboBox x:Name="phonoLagCombo" HorizontalAlignment="Left" Margin="145,285,0,0" VerticalAlignment="Top" Width="86"/>
+        <Label x:Name="label8" Content="Ritardo acq. fonometro:" HorizontalAlignment="Left" Margin="0,285,0,0" VerticalAlignment="Top" RenderTransformOrigin="0.842,-0.115" Width="140"/>
+
+        <phonometer:PhonometerDisplay x:Name="phonoDisplay" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,10,0" Background="#FF979797"></phonometer:PhonometerDisplay>
+        <Button x:Name="plotButton" Content="Finestra Analisi" HorizontalAlignment="Left" Margin="677,234,0,0" VerticalAlignment="Top" Width="115" Click="plotOscilloscopeButton_Click"/>
+        <Label x:Name="label9" Content="IP Oscilloscopio:" HorizontalAlignment="Left" Margin="0,242,0,0" VerticalAlignment="Top"/>
+        <Button x:Name="oscilloscopeCheckButton" Content="Check Indirizzo" HorizontalAlignment="Left" Margin="323,246,0,0" VerticalAlignment="Top" Width="97" Height="22" Click="oscilloscopeCheckButton_Click"/>
+        <Label x:Name="label6_Copy" Content="Impedenza di misura:" HorizontalAlignment="Left" Margin="0,377,0,0" VerticalAlignment="Top"/>
+        <TextBox x:Name="ipOscilloscopeText" HorizontalAlignment="Left" Height="23" Margin="101,245,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="217"/>
+        <Label x:Name="label9_Copy" Content="Sonda P:" HorizontalAlignment="Left" Margin="412,267,0,0" VerticalAlignment="Top"/>
+        <ComboBox x:Name="probePosCombo" HorizontalAlignment="Left" Margin="472,267,0,0" VerticalAlignment="Top" Width="56"/>
+        <TextBox x:Name="impedanceMeasureText" HorizontalAlignment="Left" Height="23" Margin="145,377,0,0" TextWrapping="Wrap" Text="50" VerticalAlignment="Top" Width="86"/>
+        <CheckBox x:Name="phonoEnableCheck" Content="Cattura da Fonometro" HorizontalAlignment="Left" Margin="472,225,0,0" VerticalAlignment="Top" IsChecked="True"/>
+        <CheckBox x:Name="oscilloscopeEnableCheck" Content="Cattura da oscilloscopio" HorizontalAlignment="Left" Margin="472,245,0,0" VerticalAlignment="Top" IsChecked="True"/>
+        <Label x:Name="label9_Copy1" Content="Sonda N:" HorizontalAlignment="Left" Margin="542,267,0,0" VerticalAlignment="Top"/>
+        <ComboBox x:Name="probeNegCombo" HorizontalAlignment="Left" Margin="602,267,0,0" VerticalAlignment="Top" Width="56"/>
+        <Button x:Name="checkUsbButton" Content="Check Selez." HorizontalAlignment="Left" Margin="323,207,0,0" VerticalAlignment="Top" Width="97" Click="checkUsbButton_Click"/>
+
+    </Grid>
+</Window>
