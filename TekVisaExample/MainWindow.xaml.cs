@@ -144,6 +144,9 @@ namespace TekVisaExample
         protected bool mTimerStop;
         protected bool mTimerPause;
 
+        protected string mPositiveChannel;
+        protected string mNegativeChannel;
+
         protected bool mOscilloscopeCapture;
         protected bool mPhonometerCapture;
         protected double mLoadImpedance;
@@ -198,7 +201,7 @@ namespace TekVisaExample
         private void SetupInstrumentParams ()
         {
             //freq step 
-            freqStepCombo.Items.Clear();
+            /*freqStepCombo.Items.Clear();
 
             for (int k = 0; k < 1000; k++)
             {
@@ -212,7 +215,7 @@ namespace TekVisaExample
             {
                 string item_title = (k + 1).ToString() + " Vpp";
                 amplitudeCombo.Items.Add(item_title);
-            }
+            }*/
           
             phonoLagCombo.Items.Clear();
             
@@ -231,8 +234,8 @@ namespace TekVisaExample
             probePosCombo.SelectedIndex = 0;
             probeNegCombo.SelectedIndex = 1;
 
-            freqStepCombo.SelectedIndex = 0;
-            amplitudeCombo.SelectedIndex = 0;
+            //freqStepCombo.SelectedIndex = 0;
+            //amplitudeCombo.SelectedIndex = 0;
             phonoLagCombo.SelectedIndex = 0;
         }
 
@@ -285,7 +288,7 @@ namespace TekVisaExample
                 return;
             }
 
-            int n_readings = 10;
+            int n_readings = 2;
             if (mPhonometerCapture) n_readings = 50;
 
             int total_read = n_readings;
@@ -295,6 +298,7 @@ namespace TekVisaExample
             //set frequency
             int cur_freq = (int)mCurrentFrequency;
             string cur_freq_string = cur_freq.ToString();
+            double period = 1 / mCurrentFrequency;
 
             //update text
             Dispatcher.Invoke(new Action(() => {
@@ -309,6 +313,10 @@ namespace TekVisaExample
             //start with function generator
             if (WriteVISACommand(mFunctionGenerator, "SOURCE1:FREQUENCY " + cur_freq_string))
             {
+                
+                //set time division
+                if (!WriteVISACommand(mOscilloscope, "TIME_DIV " + period.ToString("E2", CultureInfo.InvariantCulture))) return;
+
                 Thread.Sleep(mPhonometerLag); 
 
                 while (true)
@@ -332,13 +340,19 @@ namespace TekVisaExample
                             {
                                 try
                                 {
-                                    string peak_res_string = mOscilloscope.Query(mVoltageSampleCommand);
+
+                                    /*string peak_res_string = mOscilloscope.Query(mVoltageSampleCommand);
                                     string[] split_resp = peak_res_string.Split(',');
                                     //if there are no errors, the value is on the 2nd token
 
                                     string tmp = split_resp[1].TrimEnd('V').TrimEnd(' ');
                                     //milliamperes
-                                    peak_value = 1000.0 * double.Parse(tmp, CultureInfo.InvariantCulture) / (2*mLoadImpedance);
+                                    peak_value = 1000.0 * double.Parse(tmp, CultureInfo.InvariantCulture) / (2*mLoadImpedance);*/
+
+                                    if (!CaptureOscilloscope(out peak_value, mPositiveChannel, mNegativeChannel, "F1")) exit = true;
+
+                                    peak_value *= (1000.0 / (2 * mLoadImpedance));
+
                                 }
                                 catch
                                 {
@@ -351,7 +365,22 @@ namespace TekVisaExample
                         
                     }
 
-                    if (exit) return; //should quit
+                    if (exit)
+                    {
+                        Dispatcher.Invoke(new Action(() => {
+
+                            MessageBox.Show("Errore sconosciuto VISA");
+
+                            WriteVISACommand(mFunctionGenerator, "OUTPUT1 OFF");
+                            //mVisaController.Close();
+                            //mVisaController = null;
+
+                            if (mWaitingDialog != null) mWaitingDialog.Close();
+
+                        }));
+
+                        return;
+                    }
 
                     if (ret == 0)
                     {
@@ -371,7 +400,7 @@ namespace TekVisaExample
                         }));
                         
 
-                        if (total_read-- == 0) break;
+                        if (--total_read == 0) break;
 
                     }
                     else if (ret == -1 || ret == -2 || ret == -3 )
@@ -460,6 +489,104 @@ namespace TekVisaExample
            
         }
 
+
+        private bool CaptureOscilloscope(out double peak_value, string ch_pos, string ch_neg, string diff)
+        {
+            peak_value = 0.0;
+            double division = 0;
+
+            try
+            {
+                //arm oscilloscope
+                string trig_check = null;
+
+                mOscilloscope.Write("COMM_HEADER OFF");
+                mOscilloscope.Timeout = 10000;
+
+                string v_div_pos = mOscilloscope.Query(ch_pos + ":VOLT_DIV?");
+                division = double.Parse(v_div_pos, CultureInfo.InvariantCulture);
+
+                do
+                {
+                    trig_check = mOscilloscope.Query("ARM;WAIT 2;TRIG_MODE?");
+                    if (string.Compare(trig_check, "STOP\n", true) == 0) break;
+                    else
+                    {
+                        MessageBoxResult res = MessageBox.Show("Impossibile catturare l'evento di trigger sul canale selezionato. Modificare i parametri per continuare", "Richiesta", MessageBoxButton.OKCancel);
+                        if (res == MessageBoxResult.OK) continue;
+                        else
+                        {
+                            mOscilloscope.Write("COMM_HEADER SHORT");
+                            return false;
+                        }
+                    }
+                }
+                while (true);
+
+                //we have a trigger!
+                //measure data
+                do
+                {
+                    trig_check = mOscilloscope.Query("ARM;WAIT 2;TRIG_MODE?");//safe 
+                    string peak_pos_string = mOscilloscope.Query(ch_pos + ":PAVA? PKPK");
+                    string peak_neg_string = mOscilloscope.Query(ch_neg + ":PAVA? PKPK");
+
+                    string[] split_resp_pos = peak_pos_string.Split(',');
+                    string[] split_resp_neg = peak_neg_string.Split(',');
+
+                    if (string.Compare(split_resp_pos[2], "OK\n", true) != 0 || string.Compare(split_resp_neg[2], "OK\n", true) != 0 )
+                    {
+                        //one of two measures are out of range (over or under flow)
+                        //manual
+                        /*MessageBoxResult res = MessageBox.Show("Uno o entrambi i canali sono fuori scala, modificare i parametri per continuare.", "Conferma", MessageBoxButton.OKCancel);
+                        if (res == MessageBoxResult.OK) continue;
+                        else
+                        {
+                            mOscilloscope.Write("COMM_HEADER SHORT");
+                            return false;
+                        }*/
+
+
+                        //auto: both channel MUST be same scale to have a valid math operation!!
+                        //we increase in every case (UF,OF, OU)
+
+                        v_div_pos = mOscilloscope.Query(ch_pos + ":VOLT_DIV?");
+                        
+                        division = double.Parse(v_div_pos, CultureInfo.InvariantCulture);
+
+                        division += 0.5; 
+
+                        string div_string = division.ToString("E2", CultureInfo.InvariantCulture);
+
+                        mOscilloscope.Write(ch_pos + ":VOLT_DIV " + div_string);
+                        mOscilloscope.Write(ch_neg + ":VOLT_DIV " + div_string);
+
+                        continue;
+                    }
+
+                    //extract data!!
+                    string peak_res_string = mOscilloscope.Query(diff + ":PAVA? PKPK");
+                    string[] split_resp = peak_res_string.Split(',');
+                    //if there are no errors, the value is on the 2nd token
+
+                    string tmp = split_resp[1].TrimEnd('V').TrimEnd(' ');
+                    //milliamperes
+                    //peak_value = 1000.0 * double.Parse(tmp, CultureInfo.InvariantCulture) / (2 * mLoadImpedance);
+                    peak_value = double.Parse(tmp, CultureInfo.InvariantCulture);
+
+                    mOscilloscope.Write("COMM_HEADER SHORT");
+                    return true;
+
+                } while (true);
+               
+            }
+            catch (Exception excp)
+            {
+                return false;
+            }
+        }
+        
+
         private void ToneManager_Loaded(object sender, RoutedEventArgs e)
         {
             //tone manager has only one child
@@ -541,6 +668,28 @@ namespace TekVisaExample
             //mVisaController = null;
         }
 
+
+        private int CheckCommandErrorRegister( MessageBasedSession instrument )
+        {
+            int res = -1;
+
+            if (instrument == null) return res;
+                    
+            try
+            {
+                res = instrument.Query(Encoding.ASCII.GetBytes("CMR?"))[0];
+
+                return res;
+            }
+            catch (Exception excp)
+            {
+                MessageBox.Show("Errore check strumento dello strumento!");
+
+                return -1;
+            }
+            
+        }
+
         private bool WriteVISACommand ( MessageBasedSession instrument, string command )
         {
             if (instrument == null) return false;
@@ -549,6 +698,12 @@ namespace TekVisaExample
             try
             {
                 instrument.Write(Encoding.ASCII.GetBytes(command));
+
+                //check status
+                //int res = CheckCommandErrorRegister(instrument);
+
+                //return (res == 0);
+
                 return true;
             }
             catch (Exception excp)
@@ -559,12 +714,15 @@ namespace TekVisaExample
             }
 
         }
-
+        
         private void StartSweepButton_Click(object sender, RoutedEventArgs e)
         {
             //1. open serial port for phonometer
             //2. start timer to send command to instrument
             //3. open plot window
+
+            int amplitude = 0;
+            int offset = 0;
 
             mOscilloscopeCapture = (bool)oscilloscopeEnableCheck.IsChecked;
             mPhonometerCapture = (bool)phonoEnableCheck.IsChecked;
@@ -575,18 +733,24 @@ namespace TekVisaExample
                 return;
             }
 
-            //calculate impedance
+            //calculate impedance and other data
 
             try
             {
                 double impedance = double.Parse(impedanceMeasureText.Text);
                 //set impedance
                 mLoadImpedance = mPlotOscilloscopeWindow.LoadImpedance = impedance;
+
+                amplitude = int.Parse(amplitudeText.Text);
+
+                offset = int.Parse(offsetText.Text);
+
+                mFrequencyStep = int.Parse(freqStepText.Text);
                 
             }
             catch
             {
-                MessageBox.Show("Impedenza di carico inserita non valida!");
+                MessageBox.Show("Dati di configurazione non validi!");
                 return;
             }
             
@@ -616,6 +780,12 @@ namespace TekVisaExample
             mStartFrequency = slot.SweepStartFrequency;
             mStopFrequency = slot.SweepStopFrequency;
             mCurrentFrequency = mStartFrequency;
+
+            if ( mStartFrequency == 0 || mStopFrequency == 0 )
+            {
+                MessageBox.Show("Errore nell'intervallo di frequenze!");
+                return;
+            }
 
             //function generator
             try
@@ -660,18 +830,18 @@ namespace TekVisaExample
             if (!WriteVISACommand(mFunctionGenerator, "SOURCE1:FREQUENCY 100")) return;
 
             //set amplitude
-            int amplitude = amplitudeCombo.SelectedIndex + 1;
-            string command = "SOURCE1:VOLTAGE:LEVEL:IMMEDIATE " + amplitude + "Vpp";
+            //int amplitude = amplitudeCombo.SelectedIndex + 1;
+            string command_amplitude = "SOURCE1:VOLTAGE:LEVEL:IMMEDIATE " + amplitude + "Vpp";
+            string command_offset = "SOURCE1:VOLTAGE:LEVEL:IMMEDIATE:OFFSET " + offset + "mV";
 
-            if (!WriteVISACommand(mFunctionGenerator, command)) return;
+            if (!WriteVISACommand(mFunctionGenerator, command_amplitude)) return;
+            if (!WriteVISACommand(mFunctionGenerator, command_offset)) return;
 
             /////
             //configure oscilloscope
             ///
-
-            
-            string probePos = "C" + (probePosCombo.SelectedIndex + 1).ToString();
-            string probeNeg = "C" + (probeNegCombo.SelectedIndex + 1).ToString();
+            mPositiveChannel = "C" + (probePosCombo.SelectedIndex + 1).ToString();
+            mNegativeChannel = "C" + (probeNegCombo.SelectedIndex + 1).ToString();
 
             //show both 
             if (!WriteVISACommand(mOscilloscope, "C1:TRACE OFF")) return;
@@ -680,43 +850,26 @@ namespace TekVisaExample
             if (!WriteVISACommand(mOscilloscope, "C4:TRACE OFF")) return;
             if (!WriteVISACommand(mOscilloscope, "F1:TRACE OFF")) return;
 
-            if (!WriteVISACommand(mOscilloscope, probePos + ":TRACE ON")) return;
-            if (!WriteVISACommand(mOscilloscope, probeNeg + ":TRACE ON")) return;
+            if (!WriteVISACommand(mOscilloscope, mPositiveChannel + ":TRACE ON")) return;
+            if (!WriteVISACommand(mOscilloscope, mNegativeChannel + ":TRACE ON")) return;
 
-            //set trigger select
-            string trigger_select = "TRIG_SELECT EDGE,SR," + probePos + ",HT,OFF";
-            if (!WriteVISACommand(mOscilloscope, trigger_select)) return;
+            //oscilloscope configuration, delegate to manual
+            double t_div_start = 1 / mStartFrequency;
+            string time_div_str = t_div_start.ToString("E2", CultureInfo.InvariantCulture);
 
-            //set trigger coupling
-            string trigger_coupl = probePos + ":TRIG_COUPLING DC";
-            if (!WriteVISACommand(mOscilloscope, trigger_coupl)) return;
+            if (!WriteVISACommand(mOscilloscope, "TIME_DIV " + time_div_str)) return;
 
-            //set trigger level
-            string trigger_level = probePos + ":TRIG_LEVEL 0V";
-            if (!WriteVISACommand(mOscilloscope, trigger_level)) return;
-
-            //set trigger mode
-            string trigger_mode = probePos + ":TRIG_MODE NORMAL";
-            if (!WriteVISACommand(mOscilloscope, trigger_mode)) return;
-
-            //set voltage division
-            string volt_div_pos = probePos + ":VOLT_DIV 2V";
-            string volt_div_neg = probeNeg + ":VOLT_DIV 2V";
-            if (!WriteVISACommand(mOscilloscope, volt_div_pos)) return;
-            if (!WriteVISACommand(mOscilloscope, volt_div_neg)) return;
-
-            //set time division
-            string time_div = "TIME_DIV 0.001";   //1ms could be ok
-            if (!WriteVISACommand(mOscilloscope, time_div)) return;
-           
             //define math function
-            string function_define = "F1:DEFINE EQN,'" + probePos + "-" + probeNeg + "'";
+            string function_define = "F1:DEFINE EQN,'" + mPositiveChannel + "-" + mNegativeChannel + "'";
             //show math track
             //if (!WriteVISACommand(mOscilloscope, "F1:TRACE ON")) return;
 
             //cache command for oscilloscope
             mVoltageSampleCommand = "F1:PAVA? PKPK"; //peak to peak measure
-            
+
+            //stop acquisition
+            if (!WriteVISACommand(mOscilloscope, "STOP")) return;
+
             ///////////activate instrument
             ////
             if (!WriteVISACommand(mFunctionGenerator, "OUTPUT1 ON")) return;
@@ -730,7 +883,7 @@ namespace TekVisaExample
             mTimerStop = false;
 
             //set lag and freq step
-            mFrequencyStep = (freqStepCombo.SelectedIndex + 1) * 10;
+            //mFrequencyStep = (freqStepCombo.SelectedIndex + 1) * 10;
             mPhonometerLag = (phonoLagCombo.SelectedIndex + 1) * 500;
 
             //if phonometer not active we can work faster
@@ -800,7 +953,7 @@ namespace TekVisaExample
             //mVisaController.Close();
             //mVisaController = null;
         }
-
+        
         protected bool OpenPhonometer(string comName)
         {
             
@@ -1029,6 +1182,6 @@ namespace TekVisaExample
             }
             
         }
-        
+
     }
 }

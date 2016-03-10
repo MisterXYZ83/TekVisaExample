@@ -104,7 +104,8 @@ namespace TekVisaExample
         {
             //create series 
             LineSeries s = new LineSeries();
-            CustomLineSeries s_current = new CustomLineSeries();
+            //CustomLineSeries s_current = new CustomLineSeries();
+            LineSeries s_current = new LineSeries();
 
             s.Title = session.Name;
             s_current.Title = session.Name;
@@ -165,31 +166,40 @@ namespace TekVisaExample
 
                 for (int k = 0; k < n_points; k++)
                 {
-                    double f = currentPoints[k].X;
-                    double cur_db = 20 * Math.Log10(Math.Abs(currentPoints[k].Y));
+                    //double f = currentPoints[k].X;
+                    //double cur_db = 20 * Math.Log10(Math.Abs(currentPoints[k].Y));
 
-                    DataPoint point_db = new DataPoint(f, cur_db);
-                    
-                    currentPoints_db.Add(point_db);
-                    s_current.Points.Add(point_db);
+                    //DataPoint point_db = new DataPoint(f, cur_db);
+
+                    //currentPoints_db.Add(point_db);
+                    //s_current.Points.Add(point_db);
+
+                    s_current.Points.Add(currentPoints[k]);
                 }
 
-                double min_freq = currentPoints_db[0].X;;
-                double max_freq = currentPoints_db[currentPoints.Count - 1].X;;
+                //double min_freq = currentPoints_db[0].X;;
+                //double max_freq = currentPoints_db[currentPoints.Count - 1].X;;
 
-                double min_cur = currentPoints_db.Min<DataPoint>(new Func<DataPoint, double>(val => val.Y)) - 10;
-                double max_cur = currentPoints_db.Max<DataPoint>(new Func<DataPoint, double>(val => val.Y)) + 10;
-                
+                double min_freq = currentPoints[0].X; ;
+                double max_freq = currentPoints[currentPoints.Count - 1].X; ;
+
+                //double min_cur = currentPoints_db.Min<DataPoint>(new Func<DataPoint, double>(val => val.Y)) - 10;
+                //double max_cur = currentPoints_db.Max<DataPoint>(new Func<DataPoint, double>(val => val.Y)) + 10;
+                double min_cur = currentPoints.Min<DataPoint>(new Func<DataPoint, double>(val => val.Y)) - 10;
+                double max_cur = currentPoints.Max<DataPoint>(new Func<DataPoint, double>(val => val.Y)) + 10;
+
                 Guid guid_x_cur = Guid.NewGuid();
                 Guid guid_y_cur = Guid.NewGuid();
-                
-                LogarithmicAxis freq_axis_cur = new LogarithmicAxis();
+
+                //LogarithmicAxis freq_axis_cur = new LogarithmicAxis();
+                LinearAxis freq_axis_cur = new LinearAxis();
                 LinearAxis cur_axis = new LinearAxis();
                 
                 AddAxis(guid_x_cur.ToString(), guid_y_cur.ToString(), min_freq, max_freq, min_cur, max_cur, freq_axis_cur, cur_axis);
-                
-                cur_axis.Title = "Corrente [dBmA]";
-                
+
+                //cur_axis.Title = "Corrente [dBmA]";
+                cur_axis.Title = "Corrente [mA]";
+
                 mCurrentModel.Axes.Add(freq_axis_cur);
                 mCurrentModel.Axes.Add(cur_axis);
 
@@ -201,9 +211,10 @@ namespace TekVisaExample
                 
                 s_current.XAxisKey = guid_x_cur.ToString();
                 s_current.YAxisKey = guid_y_cur.ToString();
-                
-                s_current.TrackerFormatString = "{0}\n{1}: {2:0.00}Hz\n{3}: {4:0.00}dBmA";
-                
+
+                //s_current.TrackerFormatString = "{0}\n{1}: {2:0.00}Hz\n{3}: {4:0.00}dBmA";
+                s_current.TrackerFormatString = "{0}\n{1}: {2:0.00}Hz\n{3}: {4:0.00}mA";
+
                 mCurrentModel.Series.Add(s_current);
 
                 session.CurrentData = currentPoints;
