@@ -898,6 +898,7 @@ namespace TekVisaExample
             if ( mPhonometerCapture ) OpenPhonometer(mSelectedComPort);
 
             mTimerStop = false;
+            mTimerPause = false;
 
             //set lag and freq step
             //mFrequencyStep = (freqStepCombo.SelectedIndex + 1) * 10;
@@ -912,6 +913,7 @@ namespace TekVisaExample
             mWaitingDialog.Owner = this;
             mWaitingDialog.Controller = this;
 
+            mWaitingDialog.Frequency = mStartFrequency;
             mWaitingDialog.ShowDialog();
 
             //when it returns, it should stop sweep
