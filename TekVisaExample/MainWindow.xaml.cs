@@ -152,6 +152,8 @@ namespace TekVisaExample
 
         protected int mPhonometerLag;
 
+        protected bool mBalanced;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -191,6 +193,7 @@ namespace TekVisaExample
             mPhonometerCapture = true;
             mOscilloscopeCapture = true;
 
+            mBalanced = false;
 
             Closing += MainWindow_Closing;
             
@@ -527,13 +530,22 @@ namespace TekVisaExample
                 do
                 {
                     trig_check = mOscilloscope.Query("ARM;WAIT 2;TRIG_MODE?");//safe 
-                    string peak_pos_string = mOscilloscope.Query(ch_pos + ":PAVA? PKPK");
-                    string peak_neg_string = mOscilloscope.Query(ch_neg + ":PAVA? PKPK");
 
-                    string[] split_resp_pos = peak_pos_string.Split(',');
-                    string[] split_resp_neg = peak_neg_string.Split(',');
+                    string peak_pos_string = null;
+                    string peak_neg_string = null;
+                    string[] split_resp_pos = null;
+                    string[] split_resp_neg = null;
 
-                    if (string.Compare(split_resp_pos[2], "OK\n", true) != 0 || string.Compare(split_resp_neg[2], "OK\n", true) != 0 )
+                    peak_pos_string = mOscilloscope.Query(ch_pos + ":PAVA? PKPK");
+                    split_resp_pos = peak_pos_string.Split(',');
+
+                    if ( mBalanced )
+                    {
+                        peak_neg_string = mOscilloscope.Query(ch_neg + ":PAVA? PKPK");
+                        split_resp_neg = peak_neg_string.Split(',');
+                    }
+                   
+                    if (string.Compare(split_resp_pos[2], "OK\n", true) != 0 || ( mBalanced && string.Compare(split_resp_neg[2], "OK\n", true) != 0) )
                     {
                         //one of two measures are out of range (over or under flow)
                         //manual
@@ -550,21 +562,23 @@ namespace TekVisaExample
                         //we increase in every case (UF,OF, OU)
 
                         v_div_pos = mOscilloscope.Query(ch_pos + ":VOLT_DIV?");
-                        
+
                         division = double.Parse(v_div_pos, CultureInfo.InvariantCulture);
 
-                        division += 0.5; 
+                        division += 0.5;
 
                         string div_string = division.ToString("E2", CultureInfo.InvariantCulture);
 
                         mOscilloscope.Write(ch_pos + ":VOLT_DIV " + div_string);
-                        mOscilloscope.Write(ch_neg + ":VOLT_DIV " + div_string);
+                        if ( mBalanced ) mOscilloscope.Write(ch_neg + ":VOLT_DIV " + div_string);
 
                         continue;
                     }
 
                     //extract data!!
-                    string peak_res_string = mOscilloscope.Query(diff + ":PAVA? PKPK");
+                    string measure_ch = mBalanced ? diff : ch_pos;
+
+                    string peak_res_string = mOscilloscope.Query(measure_ch + ":PAVA? PKPK");
                     string[] split_resp = peak_res_string.Split(',');
                     //if there are no errors, the value is on the 2nd token
 
@@ -577,7 +591,7 @@ namespace TekVisaExample
                     return true;
 
                 } while (true);
-               
+
             }
             catch (Exception excp)
             {
@@ -725,6 +739,7 @@ namespace TekVisaExample
 
             mOscilloscopeCapture = (bool)oscilloscopeEnableCheck.IsChecked;
             mPhonometerCapture = (bool)phonoEnableCheck.IsChecked;
+            mBalanced = (bool)balancedCheck.IsChecked;
 
             if ( !mOscilloscopeCapture && !mPhonometerCapture )
             {
@@ -851,6 +866,9 @@ namespace TekVisaExample
 
             if (!WriteVISACommand(mOscilloscope, mPositiveChannel + ":TRACE ON")) return;
             if (!WriteVISACommand(mOscilloscope, mNegativeChannel + ":TRACE ON")) return;
+
+            if (!WriteVISACommand(mOscilloscope, mPositiveChannel + ":VOLT_DIV 500mV")) return;
+            if (!WriteVISACommand(mOscilloscope, mNegativeChannel + ":VOLT_DIV 500mV")) return;
 
             //oscilloscope configuration, delegate to manual
             double t_div_start = 1 / mStartFrequency;

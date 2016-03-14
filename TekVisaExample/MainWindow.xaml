@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:controls="clr-namespace:ControllerSirena"
         xmlns:phonometer="clr-namespace:TekVisaExample"
-    Title="Misuratore Buzzer" Height="541" Width="837">
+    Title="Misuratore Buzzer" Height="592" Width="837">
     <Grid Margin="10,10,10,5">
         <controls:ToneManager x:Name="toneManager" Margin="0,50,330,0" HorizontalAlignment="Stretch" Height="150" VerticalAlignment="Top">
         </controls:ToneManager>
@@ -37,7 +37,7 @@
         <CheckBox x:Name="phonoEnableCheck" Content="Cattura da Fonometro" HorizontalAlignment="Left" Margin="497,210,0,0" VerticalAlignment="Top" IsChecked="True"/>
         <CheckBox x:Name="oscilloscopeEnableCheck" Content="Cattura da oscilloscopio" HorizontalAlignment="Left" Margin="497,230,0,0" VerticalAlignment="Top" IsChecked="True"/>
         <Button x:Name="checkUsbButton" Content="Check Selez." HorizontalAlignment="Left" Margin="323,207,0,0" VerticalAlignment="Top" Width="97" Click="checkUsbButton_Click"/>
-        <Grid HorizontalAlignment="Left" Height="194" Margin="0,286,0,0" VerticalAlignment="Top" Width="330">
+        <Grid HorizontalAlignment="Left" Height="230" Margin="0,286,0,0" VerticalAlignment="Top" Width="330">
             <Label x:Name="label8" Content="Ritardo acq. fonometro:" HorizontalAlignment="Left" VerticalAlignment="Top" RenderTransformOrigin="0.842,-0.115" Width="140"/>
             <Label x:Name="label7" Content="Vpp [V]" HorizontalAlignment="Left" Margin="0,31,0,0" VerticalAlignment="Top"/>
             <Label x:Name="label6_Copy1" Content="Freq. Step [Hz]:" HorizontalAlignment="Left" Margin="0,62,0,0" VerticalAlignment="Top"/>
@@ -52,6 +52,7 @@
             <ComboBox x:Name="probePosCombo" HorizontalAlignment="Left" Margin="61,159,0,0" VerticalAlignment="Top" Width="56"/>
             <Label x:Name="label9_Copy1" Content="Sonda N:" HorizontalAlignment="Left" Margin="200,159,0,0" VerticalAlignment="Top"/>
             <ComboBox x:Name="probeNegCombo" HorizontalAlignment="Left" Margin="263,159,0,0" VerticalAlignment="Top" Width="56" RenderTransformOrigin="0.554,3.273"/>
+            <CheckBox x:Name="balancedCheck" Content="Misura Bilanciata" HorizontalAlignment="Left" Margin="211,205,0,0" VerticalAlignment="Top"/>
         </Grid>
 
     </Grid>
