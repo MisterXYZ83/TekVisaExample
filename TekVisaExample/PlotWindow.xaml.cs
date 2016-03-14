@@ -204,7 +204,7 @@ namespace TekVisaExample
                 worksheet.Cells[4, 2, 4, 10].Merge = true;
                 worksheet.Cells[4, 2].Value = info.Description;
 
-                worksheet.Cells[6, 1, 5, 2].Style.Font.Bold = true;
+                worksheet.Cells[6, 1, 6, 3].Style.Font.Bold = true;
 
                 worksheet.Cells[6, 1].Value = "Frequenza [Hz]";
                 worksheet.Column(1).Style.Numberformat.Format = "0.00";
@@ -301,7 +301,8 @@ namespace TekVisaExample
                         freq = info.AudioData[k].X;
                         spl = info.AudioData[k].Y;
                     }
-                    else if (info.CurrentData != null && info.CurrentData.Count > 0)
+
+                    if (info.CurrentData != null && info.CurrentData.Count > 0)
                     {
                         freq = info.CurrentData[k].X;
                         cur = info.CurrentData[k].Y;

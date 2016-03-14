@@ -290,8 +290,8 @@ namespace TekVisaExample
                 return;
             }
 
-            int n_readings = 2;
-            if (mPhonometerCapture) n_readings = 50;
+            int n_readings = 1;
+            if (mPhonometerCapture) n_readings = 10;
 
             int total_read = n_readings;
             double average_spl = 0;
