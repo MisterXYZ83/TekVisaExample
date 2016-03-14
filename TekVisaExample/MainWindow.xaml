@@ -47,7 +47,7 @@
             <ComboBox x:Name="phonoLagCombo" HorizontalAlignment="Left" Margin="200,4,0,0" VerticalAlignment="Top" Width="119"/>
             <TextBox x:Name="amplitudeText" HorizontalAlignment="Left" Height="23" Margin="200,34,0,0" TextWrapping="Wrap" Text="10" VerticalAlignment="Top" Width="120" TextAlignment="Right"/>
             <TextBox x:Name="freqStepText" HorizontalAlignment="Left" Height="23" Margin="200,65,0,0" TextWrapping="Wrap" Text="100" VerticalAlignment="Top" Width="119" TextAlignment="Right"/>
-            <TextBox x:Name="offsetText" HorizontalAlignment="Left" Height="23" Margin="200,96,0,0" TextWrapping="Wrap" Text="800" VerticalAlignment="Top" Width="119" TextAlignment="Right"/>
+            <TextBox x:Name="offsetText" HorizontalAlignment="Left" Height="23" Margin="200,96,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="119" TextAlignment="Right"/>
             <TextBox x:Name="impedanceMeasureText" HorizontalAlignment="Left" Height="23" Margin="200,128,0,0" TextWrapping="Wrap" Text="50" VerticalAlignment="Top" Width="119" TextAlignment="Right"/>
             <ComboBox x:Name="probePosCombo" HorizontalAlignment="Left" Margin="61,159,0,0" VerticalAlignment="Top" Width="56"/>
             <Label x:Name="label9_Copy1" Content="Sonda N:" HorizontalAlignment="Left" Margin="200,159,0,0" VerticalAlignment="Top"/>

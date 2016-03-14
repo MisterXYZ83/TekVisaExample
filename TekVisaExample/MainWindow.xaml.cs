@@ -13,7 +13,6 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-//using TekVISANet;
 using ControllerSirena;
 using System.IO.Ports;
 using System.Threading;
@@ -193,7 +192,7 @@ namespace TekVisaExample
             mOscilloscopeCapture = true;
 
 
-        Closing += MainWindow_Closing;
+            Closing += MainWindow_Closing;
             
         }
 
