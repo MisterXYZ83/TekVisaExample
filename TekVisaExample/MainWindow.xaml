@@ -37,7 +37,7 @@
         <CheckBox x:Name="phonoEnableCheck" Content="Cattura da Fonometro" HorizontalAlignment="Left" Margin="497,210,0,0" VerticalAlignment="Top" IsChecked="True"/>
         <CheckBox x:Name="oscilloscopeEnableCheck" Content="Cattura da oscilloscopio" HorizontalAlignment="Left" Margin="497,230,0,0" VerticalAlignment="Top" IsChecked="True"/>
         <Button x:Name="checkUsbButton" Content="Check Selez." HorizontalAlignment="Left" Margin="323,207,0,0" VerticalAlignment="Top" Width="97" Click="checkUsbButton_Click"/>
-        <Grid HorizontalAlignment="Left" Height="230" Margin="0,286,0,0" VerticalAlignment="Top" Width="330">
+        <Grid HorizontalAlignment="Left" Height="250" Margin="0,286,0,0" VerticalAlignment="Top" Width="330">
             <Label x:Name="label8" Content="Ritardo acq. fonometro:" HorizontalAlignment="Left" VerticalAlignment="Top" RenderTransformOrigin="0.842,-0.115" Width="140"/>
             <Label x:Name="label7" Content="Vpp [V]" HorizontalAlignment="Left" Margin="0,31,0,0" VerticalAlignment="Top"/>
             <Label x:Name="label6_Copy1" Content="Freq. Step [Hz]:" HorizontalAlignment="Left" Margin="0,62,0,0" VerticalAlignment="Top"/>
@@ -53,6 +53,8 @@
             <Label x:Name="label9_Copy1" Content="Sonda N:" HorizontalAlignment="Left" Margin="200,159,0,0" VerticalAlignment="Top"/>
             <ComboBox x:Name="probeNegCombo" HorizontalAlignment="Left" Margin="263,159,0,0" VerticalAlignment="Top" Width="56" RenderTransformOrigin="0.554,3.273"/>
             <CheckBox x:Name="balancedCheck" Content="Misura Bilanciata" HorizontalAlignment="Left" Margin="211,205,0,0" VerticalAlignment="Top"/>
+            <RadioButton x:Name="peakMeasureRadio" Content="Picco-Picco" Margin="5,205,246,0" VerticalAlignment="Top" GroupName="measureCheck" Checked="peakMeasureRadio_Checked" IsChecked="True"/>
+            <RadioButton x:Name="meanMeasureRadio" Content="Media" HorizontalAlignment="Left" Margin="5,225,0,0" VerticalAlignment="Top" GroupName="measureCheck" Checked="meanMeasureRadio_Checked"/>
         </Grid>
 
     </Grid>

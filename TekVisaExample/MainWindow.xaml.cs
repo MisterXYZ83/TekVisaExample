@@ -152,6 +152,7 @@ namespace TekVisaExample
 
         protected int mPhonometerLag;
 
+        protected bool mPeakPeakMeasure;
         protected bool mBalanced;
 
         public MainWindow()
@@ -505,31 +506,30 @@ namespace TekVisaExample
                 mOscilloscope.Write("COMM_HEADER OFF");
                 mOscilloscope.Timeout = 10000;
 
-                string v_div_pos = mOscilloscope.Query(ch_pos + ":VOLT_DIV?");
-                division = double.Parse(v_div_pos, CultureInfo.InvariantCulture);
+                //string v_div_pos = mOscilloscope.Query(ch_pos + ":VOLT_DIV?");
+                //division = double.Parse(v_div_pos, CultureInfo.InvariantCulture);
 
+                string v_div_pos = null;
+                     
                 do
                 {
-                    trig_check = mOscilloscope.Query("ARM;WAIT 2;TRIG_MODE?");
-                    if (string.Compare(trig_check, "STOP\n", true) == 0) break;
-                    else
+                    //first try to catch a trigger event
+                    do
                     {
-                        MessageBoxResult res = MessageBox.Show("Impossibile catturare l'evento di trigger sul canale selezionato. Modificare i parametri per continuare", "Richiesta", MessageBoxButton.OKCancel);
-                        if (res == MessageBoxResult.OK) continue;
+                        trig_check = mOscilloscope.Query("ARM;WAIT 2;TRIG_MODE?");
+                        if (string.Compare(trig_check, "STOP\n", true) == 0) break;
                         else
                         {
-                            mOscilloscope.Write("COMM_HEADER SHORT");
-                            return false;
+                            MessageBoxResult res = MessageBox.Show("Impossibile catturare l'evento di trigger sul canale selezionato. Modificare i parametri per continuare", "Richiesta", MessageBoxButton.OKCancel);
+                            if (res == MessageBoxResult.OK) continue;
+                            else
+                            {
+                                mOscilloscope.Write("COMM_HEADER SHORT");
+                                return false;
+                            }
                         }
                     }
-                }
-                while (true);
-
-                //we have a trigger!
-                //measure data
-                do
-                {
-                    trig_check = mOscilloscope.Query("ARM;WAIT 2;TRIG_MODE?");//safe 
+                    while (true);
 
                     string peak_pos_string = null;
                     string peak_neg_string = null;
@@ -544,8 +544,9 @@ namespace TekVisaExample
                         peak_neg_string = mOscilloscope.Query(ch_neg + ":PAVA? PKPK");
                         split_resp_neg = peak_neg_string.Split(',');
                     }
-                   
-                    if (string.Compare(split_resp_pos[2], "OK\n", true) != 0 || ( mBalanced && string.Compare(split_resp_neg[2], "OK\n", true) != 0) )
+
+                    //check if signal is inside the area
+                    if (string.Compare(split_resp_pos[2], "OK\n", true) != 0 || (mBalanced && string.Compare(split_resp_neg[2], "OK\n", true) != 0))
                     {
                         //one of two measures are out of range (over or under flow)
                         //manual
@@ -565,15 +566,18 @@ namespace TekVisaExample
 
                         division = double.Parse(v_div_pos, CultureInfo.InvariantCulture);
 
-                        division += 0.5;
+                        division += 0.1;
 
                         string div_string = division.ToString("E2", CultureInfo.InvariantCulture);
 
                         mOscilloscope.Write(ch_pos + ":VOLT_DIV " + div_string);
-                        if ( mBalanced ) mOscilloscope.Write(ch_neg + ":VOLT_DIV " + div_string);
+                        if (mBalanced) mOscilloscope.Write(ch_neg + ":VOLT_DIV " + div_string);
 
                         continue;
                     }
+                    
+                    //ok signal is inside the area, we want to center it
+                    ///TODO
 
                     //extract data!!
                     string measure_ch = mBalanced ? diff : ch_pos;
@@ -583,8 +587,7 @@ namespace TekVisaExample
                     //if there are no errors, the value is on the 2nd token
 
                     string tmp = split_resp[1].TrimEnd('V').TrimEnd(' ');
-                    //milliamperes
-                    //peak_value = 1000.0 * double.Parse(tmp, CultureInfo.InvariantCulture) / (2 * mLoadImpedance);
+                   
                     peak_value = double.Parse(tmp, CultureInfo.InvariantCulture);
 
                     mOscilloscope.Write("COMM_HEADER SHORT");
@@ -734,12 +737,13 @@ namespace TekVisaExample
             //2. start timer to send command to instrument
             //3. open plot window
 
-            int amplitude = 0;
-            int offset = 0;
+            double amplitude = 0;
+            double offset = 0;
 
             mOscilloscopeCapture = (bool)oscilloscopeEnableCheck.IsChecked;
             mPhonometerCapture = (bool)phonoEnableCheck.IsChecked;
             mBalanced = (bool)balancedCheck.IsChecked;
+            mPeakPeakMeasure = (bool)peakMeasureRadio.IsChecked;
 
             if ( !mOscilloscopeCapture && !mPhonometerCapture )
             {
@@ -749,7 +753,7 @@ namespace TekVisaExample
 
             //calculate impedance and other data
 
-            try
+            /*try
             {
                 double impedance = double.Parse(impedanceMeasureText.Text);
                 //set impedance
@@ -760,14 +764,40 @@ namespace TekVisaExample
                 offset = int.Parse(offsetText.Text);
 
                 mFrequencyStep = int.Parse(freqStepText.Text);
+
+                
                 
             }
             catch
             {
                 MessageBox.Show("Dati di configurazione non validi!");
                 return;
+            }*/
+
+            if ( !double.TryParse(impedanceMeasureText.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out mLoadImpedance) )
+            {
+                MessageBox.Show("Valore impedenza non valida!");
+                return;
             }
-            
+
+            if (!double.TryParse(amplitudeText.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out amplitude))
+            {
+                MessageBox.Show("Valore ampiezza non valido!");
+                return;
+            }
+
+            if (!double.TryParse(offsetText.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out offset))
+            {
+                MessageBox.Show("Valore offset non valido!");
+                return;
+            }
+
+            if (!double.TryParse(freqStepText.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out mFrequencyStep))
+            {
+                MessageBox.Show("Valore step di frequenza non valido!");
+                return;
+            }
+
             if ( probePosCombo.SelectedIndex == probeNegCombo.SelectedIndex || probeNegCombo.SelectedIndex < 0 || probePosCombo.SelectedIndex < 0 )
             {
                 MessageBox.Show("Errore nella selezione delle sonde!");
@@ -845,8 +875,8 @@ namespace TekVisaExample
 
             //set amplitude
             //int amplitude = amplitudeCombo.SelectedIndex + 1;
-            string command_amplitude = "SOURCE1:VOLTAGE:LEVEL:IMMEDIATE " + amplitude + "Vpp";
-            string command_offset = "SOURCE1:VOLTAGE:LEVEL:IMMEDIATE:OFFSET " + offset + "mV";
+            string command_amplitude = "SOURCE1:VOLTAGE:LEVEL:IMMEDIATE " + amplitude.ToString("F1", CultureInfo.InvariantCulture) + "Vpp";
+            string command_offset = "SOURCE1:VOLTAGE:LEVEL:IMMEDIATE:OFFSET " + offset.ToString("F1", CultureInfo.InvariantCulture) + "mV";
 
             if (!WriteVISACommand(mFunctionGenerator, command_amplitude)) return;
             if (!WriteVISACommand(mFunctionGenerator, command_offset)) return;
@@ -1202,5 +1232,15 @@ namespace TekVisaExample
             
         }
 
+        private void meanMeasureRadio_Checked(object sender, RoutedEventArgs e)
+        {
+            balancedCheck.IsEnabled = false;
+            balancedCheck.IsChecked = false;
+        }
+
+        private void peakMeasureRadio_Checked(object sender, RoutedEventArgs e)
+        {
+            balancedCheck.IsEnabled = true;
+        }
     }
 }
