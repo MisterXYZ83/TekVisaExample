@@ -576,16 +576,17 @@ namespace TekVisaExample
                         continue;
                     }
                     
-                    //ok signal is inside the area, we want to center it
-                    ///TODO
-
                     //extract data!!
                     string measure_ch = mBalanced ? diff : ch_pos;
 
-                    string peak_res_string = mOscilloscope.Query(measure_ch + ":PAVA? PKPK");
-                    string[] split_resp = peak_res_string.Split(',');
-                    //if there are no errors, the value is on the 2nd token
+                    string measure_res_string = null;
 
+                    if (mPeakPeakMeasure) measure_res_string = mOscilloscope.Query(measure_ch + ":PAVA? PKPK");
+                    else measure_res_string = mOscilloscope.Query(measure_ch + ":PAVA? MEAN");
+                    
+                    string[] split_resp = measure_res_string.Split(',');
+
+                    //if there are no errors, the value is on the 2nd token
                     string tmp = split_resp[1].TrimEnd('V').TrimEnd(' ');
                    
                     peak_value = double.Parse(tmp, CultureInfo.InvariantCulture);
