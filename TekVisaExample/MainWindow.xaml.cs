@@ -23,6 +23,7 @@ using OxyPlot.Series;
 using System.Globalization;
 using NationalInstruments.VisaNS;
 using System.Net;
+using System.Net.Sockets;
 
 namespace TekVisaExample
 {
@@ -154,6 +155,8 @@ namespace TekVisaExample
 
         protected bool mPeakPeakMeasure;
         protected bool mBalanced;
+        protected bool mNetworkCapture;
+        protected Socket mControllerSocket;
 
         public MainWindow()
         {
@@ -292,7 +295,7 @@ namespace TekVisaExample
             }
 
             int n_readings = 1;
-            if (mPhonometerCapture) n_readings = 10;
+            if (mPhonometerCapture) n_readings = 50;
 
             int total_read = n_readings;
             double average_spl = 0;
@@ -314,18 +317,90 @@ namespace TekVisaExample
             }));
 
             //start with function generator
-            if (WriteVISACommand(mFunctionGenerator, "SOURCE1:FREQUENCY " + cur_freq_string))
+
+            bool start_capture = false;
+             
+            if ( mNetworkCapture )
             {
+                //invio comando di rete di impostazione della frequenza
+                byte[] message_to_send = new byte[6 + 4];
+
+                //setto la frequenza
+                if ( mControllerSocket != null )
+                {
+                    byte [] command_bytes = BitConverter.GetBytes((short)1); //command 1: SET_SINUSOID
+                    byte[] len_bytes = BitConverter.GetBytes(4); //lunghezza payload = 4
+                    byte[] freq_bytes = BitConverter.GetBytes((int)cur_freq); //4
+
+                    Array.Copy(command_bytes, 0, message_to_send, 0, 2);
+                    Array.Copy(len_bytes, 0, message_to_send, 2, 4);
+                    Array.Copy(freq_bytes, 0, message_to_send, 6, 4);
+
+                    command_bytes = null;
+                    len_bytes = null;
+                    freq_bytes = null;
+
+
+                    try
+                    {
+                        mControllerSocket.Send(message_to_send);
+
+                        message_to_send = null;
+
+                        int n_receiver_timeouts = 4;
+                        byte[] ack_data = new byte[10];
+
+                        //ricevo l'ack
+                        while ( true )
+                        {
+                            try
+                            {
+                                mControllerSocket.Receive(ack_data, 0, 2, SocketFlags.None);
+
+                                if ( BitConverter.ToInt16(ack_data, 0) == (short)1 )
+                                {
+                                    start_capture = true;
+                                    break;
+                                }
+                            }
+                            catch (SocketException exc)
+                            {
+                                //timeout
+                                n_receiver_timeouts--;
+
+                                if ( n_receiver_timeouts <= 0 )
+                                {
+                                    //esco per errore...
+                                    start_capture = false;
+                                }
+                            }
+                        }
+
+                    }
+                    catch
+                    {
+                        start_capture = false;
+                    }
+                    
+                }
                 
+            }
+            else
+            {
+                //cattura locale
+                start_capture = WriteVISACommand(mFunctionGenerator, "SOURCE1:FREQUENCY " + cur_freq_string);
+            }
+
+            if (start_capture)
+            {
                 //set time division
-                if (!WriteVISACommand(mOscilloscope, "TIME_DIV " + period.ToString("E2", CultureInfo.InvariantCulture))) return;
+                if (mOscilloscopeCapture && !WriteVISACommand(mOscilloscope, "TIME_DIV " + period.ToString("E2", CultureInfo.InvariantCulture))) return;
 
                 Thread.Sleep(mPhonometerLag); 
 
                 while (true)
                 {
                     //read N
-
                     int ret = 0;
                     //mutex
                     lock (mPhonoLock)
@@ -343,16 +418,7 @@ namespace TekVisaExample
                             {
                                 try
                                 {
-
-                                    /*string peak_res_string = mOscilloscope.Query(mVoltageSampleCommand);
-                                    string[] split_resp = peak_res_string.Split(',');
-                                    //if there are no errors, the value is on the 2nd token
-
-                                    string tmp = split_resp[1].TrimEnd('V').TrimEnd(' ');
-                                    //milliamperes
-                                    peak_value = 1000.0 * double.Parse(tmp, CultureInfo.InvariantCulture) / (2*mLoadImpedance);*/
-
-                                    if (!CaptureOscilloscope(out peak_value, mPositiveChannel, mNegativeChannel, "F1")) exit = true;
+                                    if (mOscilloscopeCapture && !CaptureOscilloscope(out peak_value, mPositiveChannel, mNegativeChannel, "F1")) exit = true;
 
                                     peak_value *= (1000.0 / (2 * mLoadImpedance));
 
@@ -374,7 +440,7 @@ namespace TekVisaExample
 
                             MessageBox.Show("Errore sconosciuto VISA");
 
-                            WriteVISACommand(mFunctionGenerator, "OUTPUT1 OFF");
+                            if ( !mNetworkCapture ) WriteVISACommand(mFunctionGenerator, "OUTPUT1 OFF");
                             //mVisaController.Close();
                             //mVisaController = null;
 
@@ -412,7 +478,7 @@ namespace TekVisaExample
 
                             MessageBox.Show("Impossibile leggere da fonometro...");
 
-                            WriteVISACommand(mFunctionGenerator, "OUTPUT1 OFF");
+                            if ( !mNetworkCapture ) WriteVISACommand(mFunctionGenerator, "OUTPUT1 OFF");
                             //mVisaController.Close();
                             //mVisaController = null;
 
@@ -426,7 +492,7 @@ namespace TekVisaExample
                 }
                 
                 //we have a sample, add to current data
-                if (mPhonometerCapture)
+                if ( mPhonometerCapture )
                 {
                     DataPoint point = new DataPoint(mCurrentFrequency, average_spl);
                     mCurrentData.Add(point);
@@ -477,9 +543,9 @@ namespace TekVisaExample
             {
                 Dispatcher.Invoke(new Action(() => {
 
-                    MessageBox.Show("Impossibile leggere da fonometro...");
+                    MessageBox.Show("Errore di interfacciamento rete/strumento VISA...");
 
-                    WriteVISACommand(mFunctionGenerator, "OUTPUT1 OFF");
+                    if ( !mNetworkCapture ) WriteVISACommand(mFunctionGenerator, "OUTPUT1 OFF");
                     //mVisaController.Close();
                     //mVisaController = null;
 
@@ -737,57 +803,36 @@ namespace TekVisaExample
             //1. open serial port for phonometer
             //2. start timer to send command to instrument
             //3. open plot window
+            
 
             double amplitude = 0;
             double offset = 0;
 
+            mNetworkCapture = (bool)networkControllerCombo.IsChecked;
             mOscilloscopeCapture = (bool)oscilloscopeEnableCheck.IsChecked;
             mPhonometerCapture = (bool)phonoEnableCheck.IsChecked;
             mBalanced = (bool)balancedCheck.IsChecked;
             mPeakPeakMeasure = (bool)peakMeasureRadio.IsChecked;
-
+            
             if ( !mOscilloscopeCapture && !mPhonometerCapture )
             {
                 MessageBox.Show("Nessuna misura selezionata!");
                 return;
             }
-
-            //calculate impedance and other data
-
-            /*try
-            {
-                double impedance = double.Parse(impedanceMeasureText.Text);
-                //set impedance
-                mLoadImpedance = mPlotOscilloscopeWindow.LoadImpedance = impedance;
-
-                amplitude = int.Parse(amplitudeText.Text);
-
-                offset = int.Parse(offsetText.Text);
-
-                mFrequencyStep = int.Parse(freqStepText.Text);
-
-                
-                
-            }
-            catch
-            {
-                MessageBox.Show("Dati di configurazione non validi!");
-                return;
-            }*/
-
-            if ( !double.TryParse(impedanceMeasureText.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out mLoadImpedance) )
+            
+            if ( mOscilloscopeCapture && !double.TryParse(impedanceMeasureText.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out mLoadImpedance) )
             {
                 MessageBox.Show("Valore impedenza non valida!");
                 return;
             }
 
-            if (!double.TryParse(amplitudeText.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out amplitude))
+            if ( !mNetworkCapture && !double.TryParse(amplitudeText.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out amplitude))
             {
                 MessageBox.Show("Valore ampiezza non valido!");
                 return;
             }
 
-            if (!double.TryParse(offsetText.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out offset))
+            if ( !mNetworkCapture && !double.TryParse(offsetText.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out offset))
             {
                 MessageBox.Show("Valore offset non valido!");
                 return;
@@ -799,7 +844,7 @@ namespace TekVisaExample
                 return;
             }
 
-            if ( probePosCombo.SelectedIndex == probeNegCombo.SelectedIndex || probeNegCombo.SelectedIndex < 0 || probePosCombo.SelectedIndex < 0 )
+            if ( mOscilloscopeCapture && (probePosCombo.SelectedIndex == probeNegCombo.SelectedIndex || probeNegCombo.SelectedIndex < 0 || probePosCombo.SelectedIndex < 0) )
             {
                 MessageBox.Show("Errore nella selezione delle sonde!");
                 return;
@@ -835,12 +880,15 @@ namespace TekVisaExample
             //function generator
             try
             {
-                VisaInstrumentItem visa_instrument = instrumentsCombo.SelectedItem as VisaInstrumentItem;
+                if (!mNetworkCapture)
+                {
+                    VisaInstrumentItem visa_instrument = instrumentsCombo.SelectedItem as VisaInstrumentItem;
 
-                mFunctionGenerator = (MessageBasedSession)ResourceManager.GetLocalManager().Open(visa_instrument.Resource);
+                    mFunctionGenerator = (MessageBasedSession)ResourceManager.GetLocalManager().Open(visa_instrument.Resource);
 
-                //reset
-                mFunctionGenerator.Write("*RST");
+                    //reset
+                    mFunctionGenerator.Write("*RST");
+                }
             }
             catch
             {
@@ -851,9 +899,12 @@ namespace TekVisaExample
             //oscilloscope
             try
             {
-                mOscilloscope = (MessageBasedSession)ResourceManager.GetLocalManager().Open(mOscilloscopeResource);
+                if (mOscilloscopeCapture)
+                {
+                    mOscilloscope = (MessageBasedSession)ResourceManager.GetLocalManager().Open(mOscilloscopeResource);
 
-                mOscilloscope.Query("*STB?");
+                    mOscilloscope.Query("*STB?");
+                }
             }
             catch
             {
@@ -866,21 +917,21 @@ namespace TekVisaExample
             ///
 
             //select sinusoid wave
-            if (!WriteVISACommand(mFunctionGenerator, "SOURCE1:FUNCTION:SHAPE SINUSOID")) return;
+            if ( !mNetworkCapture && !WriteVISACommand(mFunctionGenerator, "SOURCE1:FUNCTION:SHAPE SINUSOID")) return;
 
             //set frequency mode to CW
-            if (!WriteVISACommand(mFunctionGenerator, "SOURCE1:FREQUENCY:MODE CW")) return;
+            if (!mNetworkCapture && !WriteVISACommand(mFunctionGenerator, "SOURCE1:FREQUENCY:MODE CW")) return;
             
             //set current frequency to low
-            if (!WriteVISACommand(mFunctionGenerator, "SOURCE1:FREQUENCY 100")) return;
+            if (!mNetworkCapture && !WriteVISACommand(mFunctionGenerator, "SOURCE1:FREQUENCY 100")) return;
 
             //set amplitude
             //int amplitude = amplitudeCombo.SelectedIndex + 1;
             string command_amplitude = "SOURCE1:VOLTAGE:LEVEL:IMMEDIATE " + amplitude.ToString("F1", CultureInfo.InvariantCulture) + "Vpp";
             string command_offset = "SOURCE1:VOLTAGE:LEVEL:IMMEDIATE:OFFSET " + offset.ToString("F1", CultureInfo.InvariantCulture) + "mV";
 
-            if (!WriteVISACommand(mFunctionGenerator, command_amplitude)) return;
-            if (!WriteVISACommand(mFunctionGenerator, command_offset)) return;
+            if (!mNetworkCapture && !WriteVISACommand(mFunctionGenerator, command_amplitude)) return;
+            if (!mNetworkCapture && !WriteVISACommand(mFunctionGenerator, command_offset)) return;
 
             /////
             //configure oscilloscope
@@ -889,23 +940,23 @@ namespace TekVisaExample
             mNegativeChannel = "C" + (probeNegCombo.SelectedIndex + 1).ToString();
 
             //show both 
-            if (!WriteVISACommand(mOscilloscope, "C1:TRACE OFF")) return;
-            if (!WriteVISACommand(mOscilloscope, "C2:TRACE OFF")) return;
-            if (!WriteVISACommand(mOscilloscope, "C3:TRACE OFF")) return;
-            if (!WriteVISACommand(mOscilloscope, "C4:TRACE OFF")) return;
-            if (!WriteVISACommand(mOscilloscope, "F1:TRACE OFF")) return;
+            if (mOscilloscopeCapture && !WriteVISACommand(mOscilloscope, "C1:TRACE OFF")) return;
+            if (mOscilloscopeCapture && !WriteVISACommand(mOscilloscope, "C2:TRACE OFF")) return;
+            if (mOscilloscopeCapture && !WriteVISACommand(mOscilloscope, "C3:TRACE OFF")) return;
+            if (mOscilloscopeCapture && !WriteVISACommand(mOscilloscope, "C4:TRACE OFF")) return;
+            if (mOscilloscopeCapture && !WriteVISACommand(mOscilloscope, "F1:TRACE OFF")) return;
 
-            if (!WriteVISACommand(mOscilloscope, mPositiveChannel + ":TRACE ON")) return;
-            if (!WriteVISACommand(mOscilloscope, mNegativeChannel + ":TRACE ON")) return;
+            if (mOscilloscopeCapture && !WriteVISACommand(mOscilloscope, mPositiveChannel + ":TRACE ON")) return;
+            if (mOscilloscopeCapture && !WriteVISACommand(mOscilloscope, mNegativeChannel + ":TRACE ON")) return;
 
-            if (!WriteVISACommand(mOscilloscope, mPositiveChannel + ":VOLT_DIV 500mV")) return;
-            if (!WriteVISACommand(mOscilloscope, mNegativeChannel + ":VOLT_DIV 500mV")) return;
+            if (mOscilloscopeCapture && !WriteVISACommand(mOscilloscope, mPositiveChannel + ":VOLT_DIV 500mV")) return;
+            if (mOscilloscopeCapture && !WriteVISACommand(mOscilloscope, mNegativeChannel + ":VOLT_DIV 500mV")) return;
 
             //oscilloscope configuration, delegate to manual
             double t_div_start = 1 / mStartFrequency;
             string time_div_str = t_div_start.ToString("E2", CultureInfo.InvariantCulture);
 
-            if (!WriteVISACommand(mOscilloscope, "TIME_DIV " + time_div_str)) return;
+            if (mOscilloscopeCapture && !WriteVISACommand(mOscilloscope, "TIME_DIV " + time_div_str)) return;
 
             //define math function
             string function_define = "F1:DEFINE EQN,'" + mPositiveChannel + "-" + mNegativeChannel + "'";
@@ -916,11 +967,11 @@ namespace TekVisaExample
             mVoltageSampleCommand = "F1:PAVA? PKPK"; //peak to peak measure
 
             //stop acquisition
-            if (!WriteVISACommand(mOscilloscope, "STOP")) return;
+            if (mOscilloscopeCapture && !WriteVISACommand(mOscilloscope, "STOP")) return;
 
             ///////////activate instrument
             ////
-            if (!WriteVISACommand(mFunctionGenerator, "OUTPUT1 ON")) return;
+            if (!mNetworkCapture && !WriteVISACommand(mFunctionGenerator, "OUTPUT1 ON")) return;
 
             //show a dialog to stop timer
             mSelectedComPort = comPortCombo.SelectedItem as string;
@@ -936,7 +987,37 @@ namespace TekVisaExample
             mPhonometerLag = (phonoLagCombo.SelectedIndex + 1) * 500;
 
             //if phonometer not active we can work faster
-            if (!mPhonometerCapture) mPhonometerLag = 200; 
+            if (!mPhonometerCapture) mPhonometerLag = 200;
+
+            //creo la socket nel caso di connessione remota
+            if (mNetworkCapture)
+            {
+
+                IPAddress remoteAddress = null;
+
+                //verifico l'indirizzo
+                try
+                {
+                    remoteAddress = IPAddress.Parse(ipControllerText.Text);
+
+                    mControllerSocket = new Socket(AddressFamily.InterNetwork,
+                            SocketType.Stream, ProtocolType.Tcp);
+
+
+                    mControllerSocket.ReceiveTimeout = 500; //500 ms di timeout di ricezione dell'ack
+
+                    IPEndPoint remoteEP = new IPEndPoint(remoteAddress, 55000);
+
+                    mControllerSocket.Connect(remoteEP);
+
+                }
+                catch
+                {
+                    MessageBox.Show("Errore durante la creazione della connessione col controller, controllare i parametri o la rete!", "Errore");
+
+                    return;
+                }
+            }
 
             mSamplingTimer.Start();
 
@@ -946,7 +1027,7 @@ namespace TekVisaExample
 
             mWaitingDialog.Frequency = mStartFrequency;
             mWaitingDialog.ShowDialog();
-
+            
             //when it returns, it should stop sweep
             mSamplingTimer.Enabled = false;
 
@@ -959,6 +1040,22 @@ namespace TekVisaExample
                 mTimerStop = true;
             }
 
+
+            //chiudo la socket
+            if ( mControllerSocket != null )
+            {
+                try
+                {
+                    mControllerSocket.Shutdown(SocketShutdown.Both);
+                    mControllerSocket.Close();
+
+                    mControllerSocket = null;
+                }
+                catch
+                {
+
+                }
+            }
 
             //update plot
 
@@ -978,13 +1075,13 @@ namespace TekVisaExample
             ClosePhonometer();
 
             //stop instrument output
-            if (!WriteVISACommand(mFunctionGenerator, "OUTPUT1 OFF")) return;
+            if (!mNetworkCapture && !WriteVISACommand(mFunctionGenerator, "OUTPUT1 OFF")) return;
 
-            if (!WriteVISACommand(mOscilloscope, "C1:TRACE OFF")) return;
-            if (!WriteVISACommand(mOscilloscope, "C2:TRACE OFF")) return;
-            if (!WriteVISACommand(mOscilloscope, "C3:TRACE OFF")) return;
-            if (!WriteVISACommand(mOscilloscope, "C4:TRACE OFF")) return;
-            if (!WriteVISACommand(mOscilloscope, "F1:TRACE OFF")) return;
+            if (mOscilloscopeCapture && !WriteVISACommand(mOscilloscope, "C1:TRACE OFF")) return;
+            if (mOscilloscopeCapture && !WriteVISACommand(mOscilloscope, "C2:TRACE OFF")) return;
+            if (mOscilloscopeCapture && !WriteVISACommand(mOscilloscope, "C3:TRACE OFF")) return;
+            if (mOscilloscopeCapture && !WriteVISACommand(mOscilloscope, "C4:TRACE OFF")) return;
+            if (mOscilloscopeCapture && !WriteVISACommand(mOscilloscope, "F1:TRACE OFF")) return;
 
             //close session
             try
@@ -1243,5 +1340,6 @@ namespace TekVisaExample
         {
             balancedCheck.IsEnabled = true;
         }
+        
     }
 }

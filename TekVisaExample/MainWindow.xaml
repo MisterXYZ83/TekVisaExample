@@ -30,7 +30,7 @@
         </Grid>
 
         <phonometer:PhonometerDisplay x:Name="phonoDisplay" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,10,0" Background="#FF979797"></phonometer:PhonometerDisplay>
-        <Button x:Name="plotButton" Content="Finestra Analisi" HorizontalAlignment="Left" Margin="677,245,0,0" VerticalAlignment="Top" Width="115" Click="plotOscilloscopeButton_Click" Height="30"/>
+        <Button x:Name="plotButton" Content="Finestra Analisi" HorizontalAlignment="Left" Margin="677,320,0,0" VerticalAlignment="Top" Width="115" Click="plotOscilloscopeButton_Click" Height="30"/>
         <Label x:Name="label9" Content="IP Oscilloscopio:" HorizontalAlignment="Left" Margin="0,242,0,0" VerticalAlignment="Top"/>
         <Button x:Name="oscilloscopeCheckButton" Content="Check Indirizzo" HorizontalAlignment="Left" Margin="323,246,0,0" VerticalAlignment="Top" Width="97" Height="22" Click="oscilloscopeCheckButton_Click"/>
         <TextBox x:Name="ipOscilloscopeText" HorizontalAlignment="Left" Height="23" Margin="101,245,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="217"/>
@@ -56,6 +56,9 @@
             <RadioButton x:Name="peakMeasureRadio" Content="Picco-Picco" Margin="5,205,246,0" VerticalAlignment="Top" GroupName="measureCheck" Checked="peakMeasureRadio_Checked" IsChecked="True"/>
             <RadioButton x:Name="meanMeasureRadio" Content="Media" HorizontalAlignment="Left" Margin="5,225,0,0" VerticalAlignment="Top" GroupName="measureCheck" Checked="meanMeasureRadio_Checked"/>
         </Grid>
+        <TextBox x:Name="ipControllerText" HorizontalAlignment="Left" Height="23" Margin="581,270,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="211"/>
+        <Label x:Name="label9_Copy2" Content="IP Controller:" HorizontalAlignment="Left" Margin="497,270,0,0" VerticalAlignment="Top"/>
+        <CheckBox x:Name="networkControllerCombo" Content="Misura Remota" HorizontalAlignment="Left" Margin="497,250,0,0" VerticalAlignment="Top"/>
 
     </Grid>
 </Window>
